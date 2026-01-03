@@ -2,16 +2,22 @@
 
 City of Austin AI Application Template - A complete starter kit for building AI-powered applications with Azure OpenAI.
 
-## Features
+[![Use this template](https://img.shields.io/badge/Use%20this-template-blue?style=for-the-badge)](https://github.com/crypticpy/COA_AI_Template/generate)
 
-- **Frontend**: React 18 + TypeScript + Vite + TailwindCSS
-- **Backend**: FastAPI (Python) with Azure OpenAI integration
-- **Design System**: City of Austin brand colors and styling
-- **Infrastructure**: Azure Bicep templates for Container Apps
-- **CI/CD**: GitHub Actions deployment pipeline
-- **Docker**: Multi-stage builds for production
+## What's Included
 
-## Quick Start
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| **Frontend** | React 18 + TypeScript + Vite | Modern web UI with hot reload |
+| **Styling** | TailwindCSS + COA Brand Colors | Consistent City of Austin design |
+| **Backend** | FastAPI (Python) | Fast async API server |
+| **AI Integration** | Azure OpenAI | GPT-4, embeddings, chat completions |
+| **Auth** | Supabase | User authentication (swappable) |
+| **Infrastructure** | Azure Bicep | Container Apps, Key Vault, ACR |
+| **CI/CD** | GitHub Actions | Automated build and deploy |
+| **Containers** | Docker | Production-ready images |
+
+## 🚀 Quick Start (5 minutes)
 
 ### Prerequisites
 
@@ -167,6 +173,40 @@ ruff check .                    # Lint code
 | Infrastructure | Azure Container Apps, Bicep |
 | CI/CD | GitHub Actions |
 
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Getting Started](docs/GETTING_STARTED.md) | **Start here!** Step-by-step setup guide |
+| [Examples](docs/EXAMPLES.md) | Code snippets for common patterns (chat, upload, search) |
+| [Environment Setup](docs/ENV_SETUP.md) | Detailed environment variable configuration |
+| [Deployment](docs/DEPLOYMENT.md) | Deploy to Azure Container Apps |
+| [Branding](docs/BRANDING.md) | Customize colors, logos, and styling |
+
+## 🎯 Example Use Cases
+
+This template can be used to build:
+
+- **Chatbots & Q&A Systems** - Interactive AI assistants
+- **Document Analyzers** - Upload and extract insights from files
+- **Content Generators** - Create reports, emails, summaries
+- **Semantic Search** - Find information using natural language
+- **Data Dashboards** - Visualize data with AI-generated insights
+
+See [docs/EXAMPLES.md](docs/EXAMPLES.md) for implementation code.
+
+## 🔧 Customization Checklist
+
+When starting a new project, update these files:
+
+- [ ] `frontend/index.html` - Page title
+- [ ] `frontend/src/components/Header.tsx` - App name
+- [ ] `frontend/src/pages/Login.tsx` - Login branding
+- [ ] `infrastructure/main.bicep` - Resource names
+- [ ] `README.md` - Project description
+
+Search for `TODO:` comments throughout the codebase for all customization points.
+
 ## License
 
 Internal City of Austin use only.
@@ -174,3 +214,9 @@ Internal City of Austin use only.
 ## Support
 
 Contact the Austin AI/ML team for support.
+
+---
+
+<p align="center">
+  <img src="branding/COA-Logo-Horizontal-Official-RGB.png" alt="City of Austin" width="200">
+</p>
