@@ -1,0 +1,72 @@
+# ============================================================================
+# COA AI Template - Docker Compose Configuration
+# ============================================================================
+# For local development and testing
+# Usage: docker-compose -f docker/docker-compose.yml up
+# ============================================================================
+
+services:
+  # Frontend (React + Vite)
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend.dev
+    container_name: coa-ai-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ../frontend/src:/app/src:ro
+      - ../frontend/public:/app/public:ro
+    restart: unless-stopped
+    networks:
+      - coa-ai-network
+
+  # Backend (FastAPI)
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/Dockerfile.backend.dev
+    container_name: coa-ai-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ../backend/.env
+    environment:
+      - ENVIRONMENT=development
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    volumes:
+      - ../backend/app:/app/app:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - coa-ai-network
+
+networks:
+  coa-ai-network:
+    driver: bridge
+    name: coa-ai-network
+
+# ============================================================================
+# Usage
+# ============================================================================
+#
+# Start services:
+#   docker-compose -f docker/docker-compose.yml up
+#
+# Start in background:
+#   docker-compose -f docker/docker-compose.yml up -d
+#
+# View logs:
+#   docker-compose -f docker/docker-compose.yml logs -f
+#
+# Stop:
+#   docker-compose -f docker/docker-compose.yml down
+#
+# ============================================================================

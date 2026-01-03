@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+*.md
+docs/
+
+# Tests
+coverage/
+.pytest_cache/
+**/*.test.*
+**/*.spec.*
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+
+# Infrastructure
+infrastructure/
+
+# Misc
+.DS_Store
+*.log

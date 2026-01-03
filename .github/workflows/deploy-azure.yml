@@ -1,0 +1,207 @@
+# ============================================================================
+# COA AI Template - Azure Container Apps CI/CD Pipeline
+# ============================================================================
+
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - production
+
+env:
+  # TODO: Update these for your application
+  ACR_NAME: coaaiappacr
+  IMAGE_NAME: coa-ai-app
+  AZURE_REGION: eastus
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+jobs:
+  # ==========================================================================
+  # Build and Push Image
+  # ==========================================================================
+  build:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.image-tag.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate image tag
+        id: image-tag
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            TAG="pr-${{ github.event.pull_request.number }}-$(echo ${{ github.sha }} | cut -c1-7)"
+          elif [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            TAG="prod-$(echo ${{ github.sha }} | cut -c1-7)"
+          else
+            TAG="dev-$(echo ${{ github.sha }} | cut -c1-7)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
+            ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run security scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ steps.image-tag.outputs.tag }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # ==========================================================================
+  # Deploy to Dev
+  # ==========================================================================
+  deploy-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/develop' || github.event.inputs.environment == 'dev'
+    environment:
+      name: dev
+      url: ${{ steps.deploy.outputs.app-url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Container Apps
+        id: deploy
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP_DEV }}
+          containerAppName: ca-coa-ai-dev
+          containerAppEnvironment: cae-coa-ai-dev
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}
+          targetPort: 3000
+          ingress: external
+
+      - name: Health check
+        run: |
+          echo "Waiting for deployment..."
+          sleep 30
+          for i in {1..10}; do
+            if curl -f -s "${{ steps.deploy.outputs.app-url }}/api/v1/health" > /dev/null; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+
+  # ==========================================================================
+  # Deploy to Production
+  # ==========================================================================
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.app-url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Container Apps
+        id: deploy
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          resourceGroup: ${{ secrets.AZURE_RESOURCE_GROUP_PRODUCTION }}
+          containerAppName: ca-coa-ai-production
+          containerAppEnvironment: cae-coa-ai-production
+          imageToDeploy: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}
+          targetPort: 3000
+          ingress: external
+
+      - name: Health check
+        run: |
+          echo "Waiting for deployment..."
+          sleep 30
+          for i in {1..10}; do
+            if curl -f -s "${{ steps.deploy.outputs.app-url }}/api/v1/health" > /dev/null; then
+              echo "Health check passed!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 10
+          done
+          echo "Health check failed"
+          exit 1
+
+      - name: Notify success
+        if: success()
+        run: |
+          echo "✅ Deployed to production: ${{ steps.deploy.outputs.app-url }}"
+
+# ============================================================================
+# Required GitHub Secrets
+# ============================================================================
+# - AZURE_CREDENTIALS: Service principal JSON
+# - AZURE_RESOURCE_GROUP_DEV: Dev resource group name
+# - AZURE_RESOURCE_GROUP_PRODUCTION: Production resource group name
+# ============================================================================
